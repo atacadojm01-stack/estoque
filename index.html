@@ -35,14 +35,24 @@
         
         <div class="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-gray-200">
             <form id="add-form" class="flex gap-2">
-                <input 
-                    type="text" 
-                    id="product-name" 
-                    placeholder="Novo produto..." 
-                    class="flex-1 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-100"
-                    required
-                    autocomplete="off"
-                >
+                <div class="relative flex-1">
+                    <input 
+                        type="text" 
+                        id="product-name" 
+                        placeholder="Novo produto..." 
+                        class="w-full bg-gray-50 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-100"
+                        required
+                        autocomplete="off"
+                    >
+                    <button 
+                        type="button" 
+                        id="mic-btn" 
+                        class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl p-2 transition-colors duration-200"
+                        title="Ditar nome do produto"
+                    >
+                        🎤
+                    </button>
+                </div>
                 <button 
                     type="submit" 
                     class="bg-blue-600 text-white font-bold px-5 py-3 rounded-xl active:scale-95 transition-transform"
@@ -126,10 +136,62 @@
         const productNameInput = document.getElementById('product-name');
         const searchMainInput = document.getElementById('search-main');
         const productList = document.getElementById('product-list');
+        const micBtn = document.getElementById('mic-btn');
         
         const summaryModal = document.getElementById('summary-modal');
         const searchSummaryInput = document.getElementById('search-summary');
         const summaryList = document.getElementById('summary-list');
+
+        // ==========================================
+        // CONFIGURAÇÃO DO MICROFONE (VOICE TO TEXT)
+        // ==========================================
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR'; // Define para o idioma português
+            recognition.continuous = false; // Para de ouvir assim que você termina a frase
+
+            recognition.onstart = function() {
+                // Efeito visual enquanto está ouvindo
+                micBtn.classList.remove('text-gray-400');
+                micBtn.classList.add('text-red-500', 'animate-pulse');
+                productNameInput.placeholder = "Ouvindo...";
+            };
+
+            recognition.onresult = function(event) {
+                // Pega o texto falado e coloca no input
+                const transcript = event.results[0][0].transcript;
+                productNameInput.value = transcript;
+                
+                // Opcional: Se quiser que ele adicione automaticamente logo após você falar, 
+                // remova os comentários (//) da linha abaixo:
+                // document.getElementById('add-form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Erro no reconhecimento de voz:", event.error);
+                if(event.error === 'not-allowed') {
+                    alert("Por favor, permita o acesso ao microfone no seu navegador.");
+                }
+            };
+
+            recognition.onend = function() {
+                // Retorna o botão ao normal quando termina
+                micBtn.classList.remove('text-red-500', 'animate-pulse');
+                micBtn.classList.add('text-gray-400');
+                productNameInput.placeholder = "Novo produto...";
+            };
+
+            micBtn.addEventListener('click', () => {
+                recognition.start();
+            });
+        } else {
+            // Esconde o botão se o navegador não suportar
+            micBtn.style.display = 'none';
+            console.warn("Reconhecimento de voz não suportado neste navegador.");
+        }
+        // ==========================================
 
         // Adicionar Produto
         addForm.addEventListener('submit', function(e) {
@@ -184,13 +246,12 @@
             }
         }
 
-        // Função nova para copiar o texto para o input
+        // Função para copiar o texto para o input
         function copyToInput(id) {
             const product = products.find(p => p.id === id);
             if (product) {
                 productNameInput.value = product.name;
                 productNameInput.focus();
-                // Rola a página para o topo suavemente para ver o campo
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
@@ -203,7 +264,7 @@
             }
         }
 
-        // Renderizar Lista Principal (com filtro)
+        // Renderizar Lista Principal
         function renderList() {
             const searchTerm = searchMainInput.value.toLowerCase();
             const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm));
@@ -260,7 +321,7 @@
             });
         }
 
-        // Renderizar Lista do Resumo (com filtro)
+        // Renderizar Lista do Resumo
         function renderSummary() {
             const searchTerm = searchSummaryInput.value.toLowerCase();
             const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm));
